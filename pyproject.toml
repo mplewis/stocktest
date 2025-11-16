@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stocktest"
+version = "0.1.0"
+description = "A backtesting framework for stock portfolio analysis with intelligent caching"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    {name = "stocktest developers"}
+]
+dependencies = [
+    "yfinance>=0.2.40",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "matplotlib>=3.7.0",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.1.8",
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "prek>=0.1.0",
+]
+
+[project.scripts]
+stocktest = "stocktest.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "D", "SIM", "PL"]
+ignore = ["D100", "D104"]
+
+[tool.ruff.lint.per-file-ignores]
+"*_test.py" = ["PLR2004"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.pytest.ini_options]
+testpaths = ["src"]
+python_files = "*_test.py"
+python_functions = "test_*"
+addopts = "-v --strict-markers --cov=src/stocktest --cov-report=html --cov-report=term-missing"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+source = ["src/stocktest"]
+omit = ["*_test.py", "*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

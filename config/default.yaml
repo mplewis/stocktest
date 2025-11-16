@@ -1,0 +1,22 @@
+tickers:
+  - VTI # Vanguard Total Stock Market ETF
+  - VOO # Vanguard S&P 500 ETF
+  - VEA # Vanguard FTSE Developed Markets ETF
+  - BND # Vanguard Total Bond Market ETF
+
+time_periods:
+  - name: "Pre-COVID"
+    start_date: "2018-01-01"
+    end_date: "2020-02-01"
+
+  - name: "COVID Era"
+    start_date: "2020-03-01"
+    end_date: "2021-12-31"
+
+  - name: "Post-COVID"
+    start_date: "2022-01-01"
+    end_date: "2024-12-31"
+
+  - name: "5 Year"
+    start_date: "2020-01-01"
+    end_date: "2024-12-31"

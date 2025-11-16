@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync:*)",
+      "Bash(curl:*)",
+      "Bash(sh)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run:*)",
+      "Bash(python3:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
