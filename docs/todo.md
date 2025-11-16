@@ -92,80 +92,80 @@
 
 ## Backtesting Engine
 
-- [ ] Create src/stocktest/backtest/**init**.py
-- [ ] Create src/stocktest/backtest/engine.py
-- [ ] Create src/stocktest/backtest/engine_test.py for engine tests
-- [ ] Implement Portfolio class to track positions and cash
-- [ ] Write function to calculate transaction costs (commission + slippage)
-- [ ] Implement backtesting loop (iterate through dates, execute trades, update
+- [x] Create src/stocktest/backtest/**init**.py
+- [x] Create src/stocktest/backtest/engine.py
+- [x] Create src/stocktest/backtest/engine_test.py for engine tests
+- [x] Implement Portfolio class to track positions and cash
+- [x] Write function to calculate transaction costs (commission + slippage)
+- [x] Implement backtesting loop (iterate thro ugh dates, execute trades, update
       portfolio)
-- [ ] Write function to calculate portfolio value at each timestamp
-- [ ] Add benchmark comparison logic
-- [ ] Write test for portfolio initialization in engine_test.py
-- [ ] Write test for transaction cost calculation in engine_test.py
-- [ ] Write test for simple buy-and-hold backtest in engine_test.py
-- [ ] Write test for benchmark comparison in engine_test.py
+- [x] Write function to calculate portfolio value at each timestamp
+- [x] Add benchmark comparison logic
+- [x] Write test for portfolio initialization in engine_test.py
+- [x] Write test for transaction cost calculation in engine_test.py
+- [x] Write test for simple buy-and-hold backtest in engine_test.py
+- [x] Write test for benchmark comparison in engine_test.py
 
 ## Analysis Layer
 
-- [ ] Create src/stocktest/analysis/**init**.py
-- [ ] Create src/stocktest/analysis/metrics.py
-- [ ] Create src/stocktest/analysis/metrics_test.py for metrics tests
-- [ ] Implement total return calculation
-- [ ] Implement CAGR (Compound Annual Growth Rate) calculation
-- [ ] Implement Sharpe ratio calculation
-- [ ] Implement maximum drawdown calculation
-- [ ] Implement benchmark-relative metrics (alpha, beta)
-- [ ] Write summary statistics aggregation function
-- [ ] Write test for return calculations in metrics_test.py
-- [ ] Write test for CAGR calculation in metrics_test.py
-- [ ] Write test for Sharpe ratio in metrics_test.py
-- [ ] Write test for maximum drawdown in metrics_test.py
+- [x] Create src/stocktest/analysis/**init**.py
+- [x] Create src/stocktest/analysis/metrics.py
+- [x] Create src/stocktest/analysis/metrics_test.py for metrics tests
+- [x] Implement total return calculation
+- [x] Implement CAGR (Compound Annual Growth Rate) calculation
+- [x] Implement Sharpe ratio calculation
+- [x] Implement maximum drawdown calculation
+- [x] Implement benchmark-relative metrics (alpha, beta)
+- [x] Write summary statistics aggregation function
+- [x] Write test for return calculations in metrics_test.py
+- [x] Write test for CAGR calculation in metrics_test.py
+- [x] Write test for Sharpe ratio in metrics_test.py
+- [x] Write test for maximum drawdown in metrics_test.py
 
 ## Visualization Layer
 
-- [ ] Create src/stocktest/visualization/**init**.py
-- [ ] Create src/stocktest/visualization/charts.py
-- [ ] Create src/stocktest/visualization/charts_test.py for chart tests
-- [ ] Implement matplotlib equity curve chart (static PNG/PDF)
-- [ ] Implement matplotlib drawdown chart
-- [ ] Write test for matplotlib chart generation in charts_test.py
+- [x] Create src/stocktest/visualization/**init**.py
+- [x] Create src/stocktest/visualization/charts.py
+- [x] Create src/stocktest/visualization/charts_test.py for chart tests
+- [x] Implement matplotlib equity curve chart (static PNG/PDF)
+- [x] Implement matplotlib drawdown chart
+- [x] Write test for matplotlib chart generation in charts_test.py
 
 ## Reporting & Export
 
-- [ ] Create src/stocktest/analysis/reporting.py
-- [ ] Create src/stocktest/analysis/reporting_test.py for reporting tests
-- [ ] Write function to export daily portfolio values to CSV
-- [ ] Write function to export trade log to CSV
-- [ ] Write function to export summary statistics to CSV
-- [ ] Implement report directory structure creation
-- [ ] Write test for CSV export in reporting_test.py
+- [x] Create src/stocktest/analysis/reporting.py
+- [x] Create src/stocktest/analysis/reporting_test.py for reporting tests
+- [x] Write function to export daily portfolio values to CSV
+- [x] Write function to export trade log to CSV
+- [x] Write function to export summary statistics to CSV
+- [x] Implement report directory structure creation
+- [x] Write test for CSV export in reporting_test.py
 
 ## Integration Tests
 
-- [ ] Create src/stocktest/integration_test.py for end-to-end tests
-- [ ] Write end-to-end test: config → fetch → cache → backtest → analyze →
+- [x] Create src/stocktest/integration_test.py for end-to-end tests
+- [x] Write end-to-end test: config → fetch → cache → backtest → analyze →
       export
-- [ ] Write test for handling yfinance rate limit errors
-- [ ] Write test for partial cache hits (some data cached, some needs fetching)
-- [ ] Write test for matrix backtest expansion (all time periods x all tickers)
+- [x] Write test for handling yfinance rate limit errors
+- [x] Write test for partial cache hits (some data cached, some needs fetching)
+- [x] Write test for matrix backtest expansion (all time periods x all tickers)
 
 ## CLI & Documentation
 
-- [ ] Create src/stocktest/cli.py with argparse or click
-- [ ] Implement main function to run backtests from command line
-- [ ] Add entry point to pyproject.toml
-- [ ] Create README.md with installation instructions
-- [ ] Add usage examples to README
-- [ ] Document configuration file format
+- [x] Create src/stocktest/cli.py with argparse or click
+- [x] Implement main function to run backtests from command line
+- [x] Add entry point to pyproject.toml
+- [x] Create README.md with installation instructions
+- [x] Add usage examples to README
+- [x] Document configuration file format
 - [ ] Create example Jupyter notebook (notebooks/example_backtest.ipynb)
 
 ## Final Polish
 
-- [ ] Run ruff format on all files
-- [ ] Run ruff check and fix all linting issues
-- [ ] Run pytest with coverage and ensure >80% coverage
-- [ ] Run prek on all files to verify pre-commit hooks pass
+- [x] Run ruff format on all files
+- [x] Run ruff check and fix all linting issues
+- [x] Run pytest with coverage and ensure >80% coverage (achieved 83%)
+- [x] Run prek on all files to verify pre-commit hooks pass
 - [ ] Create sample output (CSV files and charts) for demonstration
 
 ---

@@ -1,0 +1,36 @@
+time_periods:
+  - name: "dot_com_recession"
+    start_date: "2000-09-01"
+    end_date: "2002-05-31"
+
+  - name: "great_financial_crisis"
+    start_date: "2007-06-01"
+    end_date: "2009-12-31"
+
+  - name: "covid_19_recession"
+    start_date: "2019-08-01"
+    end_date: "2020-10-31"
+
+  - name: "period_1994_1998"
+    start_date: "1993-07-01"
+    end_date: "1999-06-30"
+
+  - name: "period_2003_2006"
+    start_date: "2002-07-01"
+    end_date: "2007-06-30"
+
+  - name: "period_2013_2018"
+    start_date: "2012-07-01"
+    end_date: "2019-06-30"
+
+tickers:
+  - VDC    # Vanguard Consumer Staples ETF - 0.10% expense ratio
+  - VPU    # Vanguard Utilities ETF - 0.10% expense ratio
+  - VHT    # Vanguard Health Care ETF - 0.10% expense ratio
+  - BND    # Vanguard Total Bond Market ETF - 0.03% expense ratio
+  - VGIT   # Vanguard Intermediate-Term Treasury ETF - 0.04% expense ratio
+  - VGLT   # Vanguard Long-Term Treasury ETF - 0.04% expense ratio
+  - VIG    # Vanguard Dividend Appreciation ETF - 0.06% expense ratio
+  - VYM    # Vanguard High Dividend Yield ETF - 0.06% expense ratio
+  - VMVFX  # Vanguard Global Minimum Volatility Fund - 0.18% expense ratio
+  - VNQ    # Vanguard Real Estate ETF - 0.12% expense ratio
