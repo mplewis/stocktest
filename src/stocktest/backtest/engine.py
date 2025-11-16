@@ -6,7 +6,7 @@ from typing import Any
 
 import pandas as pd
 
-from stocktest.data.fetcher import fetch_price_data
+from stocktest.data.fetcher import fetch_multiple_tickers, fetch_price_data
 
 MIN_TRADE_VALUE = 0.01
 WEIGHT_TOLERANCE = 0.001
@@ -172,12 +172,14 @@ def run_backtest(config: BacktestConfig) -> dict[str, Any]:
         raise ValueError(msg)
 
     portfolio = Portfolio(config.initial_capital, config.transaction_cost_pct, config.db_path)
-    price_data = {}
 
-    for ticker in config.tickers:
-        df = fetch_price_data(ticker, config.start_date, config.end_date, config.db_path)
-        if df is not None and not df.empty:
-            price_data[ticker] = df
+    price_data_raw = fetch_multiple_tickers(
+        config.tickers, config.start_date, config.end_date, config.db_path
+    )
+
+    price_data = {
+        ticker: df for ticker, df in price_data_raw.items() if df is not None and not df.empty
+    }
 
     if not price_data:
         msg = "No price data available for any tickers"

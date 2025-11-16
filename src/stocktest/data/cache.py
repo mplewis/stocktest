@@ -70,10 +70,7 @@ def load_price_data(
 
     start_ts = int(pd.Timestamp(start_date).tz_localize("UTC").timestamp())
     end_ts = int(
-        pd.Timestamp(end_date)
-        .tz_localize("UTC")
-        .replace(hour=23, minute=59, second=59)
-        .timestamp()
+        pd.Timestamp(end_date).tz_localize("UTC").replace(hour=23, minute=59, second=59).timestamp()
     )
 
     prices = (

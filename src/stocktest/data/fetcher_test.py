@@ -115,9 +115,8 @@ def test_uses_cache_first_strategy(mock_ticker_class, tmp_path):
 
 
 @patch("stocktest.data.fetcher.yf.Ticker")
-@patch("stocktest.data.fetcher.time.sleep")
-def test_delays_between_requests(mock_sleep, mock_ticker_class, tmp_path):
-    """Adds delays between ticker requests to avoid rate limiting."""
+def test_fetches_multiple_tickers_in_parallel(mock_ticker_class, tmp_path):
+    """Fetches multiple tickers using async parallelization."""
     db_path = tmp_path / "test.db"
 
     mock_ticker = Mock()
@@ -137,12 +136,16 @@ def test_delays_between_requests(mock_sleep, mock_ticker_class, tmp_path):
     mock_ticker.history.return_value = mock_df
 
     tickers = ["VTI", "VOO", "VEA"]
-    fetch_multiple_tickers(
+    results = fetch_multiple_tickers(
         tickers,
         datetime(2020, 1, 1),
         datetime(2020, 1, 2),
         db_path=str(db_path),
-        delay=0.5,
+        max_concurrent=2,
     )
 
-    assert mock_sleep.call_count >= 2
+    assert len(results) == 3
+    assert "VTI" in results
+    assert "VOO" in results
+    assert "VEA" in results
+    assert results["VTI"] is not None

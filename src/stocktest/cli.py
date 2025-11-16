@@ -13,6 +13,7 @@ from stocktest.analysis.metrics import summarize_performance
 from stocktest.analysis.reporting import create_report_directory
 from stocktest.backtest.engine import BacktestConfig, run_backtest
 from stocktest.config import Config
+from stocktest.data.fetcher import fetch_multiple_tickers
 from stocktest.logging import configure_logging
 
 logger = structlog.get_logger()
@@ -100,6 +101,14 @@ def run_comparison_backtest(
         end_date=str(period.end_date.date()),
         tickers=config.tickers,
         strategy="100% allocation per ticker",
+    )
+
+    logger.info("pre-fetching price data for all tickers", ticker_count=len(config.tickers))
+    fetch_multiple_tickers(
+        config.tickers,
+        period.start_date,
+        period.end_date,
+        str(db_path) if db_path else None,
     )
 
     report_path = create_report_directory(output_dir, period.name)

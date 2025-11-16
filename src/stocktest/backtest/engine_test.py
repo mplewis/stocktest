@@ -165,14 +165,14 @@ def test_raises_on_invalid_rebalance_frequency():
         _get_rebalance_dates(dates, "quarterly")
 
 
-@patch("stocktest.backtest.engine.fetch_price_data")
-def test_runs_backtest(mock_fetch_price_data):
+@patch("stocktest.backtest.engine.fetch_multiple_tickers")
+def test_runs_backtest(mock_fetch_multiple_tickers):
     """Runs backtest with rebalancing."""
     mock_df = pd.DataFrame(
         {"Close": [100.0, 110.0, 120.0]},
         index=[datetime(2020, 1, 1), datetime(2020, 1, 2), datetime(2020, 1, 3)],
     )
-    mock_fetch_price_data.return_value = mock_df
+    mock_fetch_multiple_tickers.return_value = {"VTI": mock_df}
 
     config = BacktestConfig(
         tickers=["VTI"],
@@ -191,12 +191,14 @@ def test_runs_backtest(mock_fetch_price_data):
 
 
 @patch("stocktest.backtest.engine.fetch_price_data")
-def test_runs_backtest_with_benchmark(mock_fetch_price_data):
+@patch("stocktest.backtest.engine.fetch_multiple_tickers")
+def test_runs_backtest_with_benchmark(mock_fetch_multiple_tickers, mock_fetch_price_data):
     """Runs backtest with benchmark comparison."""
     mock_df = pd.DataFrame(
         {"Close": [100.0, 110.0, 120.0]},
         index=[datetime(2020, 1, 1), datetime(2020, 1, 2), datetime(2020, 1, 3)],
     )
+    mock_fetch_multiple_tickers.return_value = {"VTI": mock_df}
     mock_fetch_price_data.return_value = mock_df
 
     config = BacktestConfig(
@@ -226,10 +228,10 @@ def test_raises_when_weights_do_not_sum_to_one(mock_fetch_price_data):
         run_backtest(config)
 
 
-@patch("stocktest.backtest.engine.fetch_price_data")
-def test_raises_when_no_price_data_available(mock_fetch_price_data):
+@patch("stocktest.backtest.engine.fetch_multiple_tickers")
+def test_raises_when_no_price_data_available(mock_fetch_multiple_tickers):
     """Raises ValueError when no price data is available."""
-    mock_fetch_price_data.return_value = None
+    mock_fetch_multiple_tickers.return_value = {"VTI": None}
 
     with pytest.raises(ValueError, match="No price data available"):
         config = BacktestConfig(
@@ -241,24 +243,18 @@ def test_raises_when_no_price_data_available(mock_fetch_price_data):
         run_backtest(config)
 
 
-@patch("stocktest.backtest.engine.fetch_price_data")
-def test_handles_multiple_tickers(mock_fetch_price_data):
+@patch("stocktest.backtest.engine.fetch_multiple_tickers")
+def test_handles_multiple_tickers(mock_fetch_multiple_tickers):
     """Handles backtesting with multiple tickers."""
-
-    def mock_data_side_effect(ticker, start, end, db_path):
-        if ticker == "VTI":
-            return pd.DataFrame(
-                {"Close": [100.0, 110.0]},
-                index=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
-            )
-        if ticker == "BND":
-            return pd.DataFrame(
-                {"Close": [80.0, 85.0]},
-                index=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
-            )
-        return None
-
-    mock_fetch_price_data.side_effect = mock_data_side_effect
+    vti_df = pd.DataFrame(
+        {"Close": [100.0, 110.0]},
+        index=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
+    )
+    bnd_df = pd.DataFrame(
+        {"Close": [80.0, 85.0]},
+        index=[datetime(2020, 1, 1), datetime(2020, 1, 2)],
+    )
+    mock_fetch_multiple_tickers.return_value = {"VTI": vti_df, "BND": bnd_df}
 
     config = BacktestConfig(
         tickers=["VTI", "BND"],

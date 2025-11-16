@@ -69,9 +69,7 @@ def test_caches_price_data(tmp_path):
         cache_price_data(session, "VTI", df)
 
     with get_session(engine) as session:
-        loaded = load_price_data(
-            session, "VTI", datetime(2020, 1, 1), datetime(2020, 1, 2)
-        )
+        loaded = load_price_data(session, "VTI", datetime(2020, 1, 1), datetime(2020, 1, 2))
 
     assert loaded is not None
     assert len(loaded) == 2
@@ -104,9 +102,7 @@ def test_loads_price_data_from_cache(tmp_path):
         cache_price_data(session, "VTI", df)
 
     with get_session(engine) as session:
-        loaded = load_price_data(
-            session, "VTI", datetime(2020, 1, 2), datetime(2020, 1, 3)
-        )
+        loaded = load_price_data(session, "VTI", datetime(2020, 1, 2), datetime(2020, 1, 3))
 
     assert loaded is not None
     assert len(loaded) == 2
@@ -137,9 +133,7 @@ def test_detects_gaps_in_cache(tmp_path):
         cache_price_data(session, "VTI", df)
 
     with get_session(engine) as session:
-        missing = find_missing_ranges(
-            session, "VTI", datetime(2020, 1, 1), datetime(2020, 1, 31)
-        )
+        missing = find_missing_ranges(session, "VTI", datetime(2020, 1, 1), datetime(2020, 1, 31))
 
     assert len(missing) == 2
     assert missing[0][0] == datetime(2020, 1, 1)
@@ -172,9 +166,7 @@ def test_updates_cache_metadata(tmp_path):
 
     with get_session(engine) as session:
         security = session.query(Security).filter_by(ticker="VTI").first()
-        metadata = (
-            session.query(CacheMetadata).filter_by(security_id=security.id).first()
-        )
+        metadata = session.query(CacheMetadata).filter_by(security_id=security.id).first()
 
         assert metadata is not None
         assert metadata.total_records == 2

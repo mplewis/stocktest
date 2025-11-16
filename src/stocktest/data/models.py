@@ -33,9 +33,7 @@ class Price(Base):
 
     __tablename__ = "prices"
 
-    security_id: Mapped[int] = mapped_column(
-        ForeignKey("securities.id"), primary_key=True
-    )
+    security_id: Mapped[int] = mapped_column(ForeignKey("securities.id"), primary_key=True)
     timestamp: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     open: Mapped[int] = mapped_column(BigInteger, nullable=False)
     high: Mapped[int] = mapped_column(BigInteger, nullable=False)
@@ -57,14 +55,10 @@ class CacheMetadata(Base):
 
     __tablename__ = "cache_metadata"
 
-    security_id: Mapped[int] = mapped_column(
-        ForeignKey("securities.id"), primary_key=True
-    )
+    security_id: Mapped[int] = mapped_column(ForeignKey("securities.id"), primary_key=True)
     last_fetch: Mapped[int] = mapped_column(BigInteger, nullable=False)
     earliest_data: Mapped[int | None] = mapped_column(BigInteger)
     latest_data: Mapped[int | None] = mapped_column(BigInteger)
     total_records: Mapped[int | None] = mapped_column(Integer)
 
-    security: Mapped["Security"] = relationship(
-        "Security", back_populates="cache_metadata"
-    )
+    security: Mapped["Security"] = relationship("Security", back_populates="cache_metadata")
