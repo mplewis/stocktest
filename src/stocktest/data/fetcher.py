@@ -6,6 +6,7 @@ from datetime import datetime
 from functools import wraps
 
 import pandas as pd
+import structlog
 import yfinance as yf
 
 from stocktest.data.cache import (
@@ -15,6 +16,8 @@ from stocktest.data.cache import (
     update_cache_metadata,
 )
 from stocktest.data.database import get_engine, get_session
+
+logger = structlog.get_logger()
 
 
 def retry_with_backoff(max_retries=3, base_delay=1.0, max_delay=60.0):
@@ -44,9 +47,7 @@ def retry_with_backoff(max_retries=3, base_delay=1.0, max_delay=60.0):
 
 
 @retry_with_backoff(max_retries=3)
-def fetch_with_retry(
-    ticker: str, start_date: datetime, end_date: datetime
-) -> pd.DataFrame:
+def fetch_with_retry(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
     """Fetch stock data from yfinance with retry logic."""
     ticker_obj = yf.Ticker(ticker)
     df = ticker_obj.history(start=start_date, end=end_date)
@@ -114,11 +115,9 @@ def fetch_multiple_tickers(
             time.sleep(delay)
 
         try:
-            results[ticker] = fetch_price_data(
-                ticker, start_date, end_date, db_path, delay=0
-            )
+            results[ticker] = fetch_price_data(ticker, start_date, end_date, db_path, delay=0)
         except Exception as e:
-            print(f"Warning: Failed to fetch {ticker}: {e}")
+            logger.warning("failed to fetch ticker", ticker=ticker, error=str(e))
             results[ticker] = None
 
     return results

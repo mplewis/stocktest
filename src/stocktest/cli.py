@@ -2,17 +2,20 @@
 
 import argparse
 import sys
-import traceback
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import structlog
 import yaml
 
 from stocktest.analysis.metrics import summarize_performance
 from stocktest.analysis.reporting import create_report_directory
 from stocktest.backtest.engine import BacktestConfig, run_backtest
 from stocktest.config import Config
+from stocktest.logging import configure_logging
+
+logger = structlog.get_logger()
 
 
 def _create_comparison_chart(results, period, report_path):
@@ -52,18 +55,20 @@ def _create_comparison_chart(results, period, report_path):
 
 
 def _print_results_summary(metrics_df):
-    """Print formatted results summary.
+    """Log formatted results summary.
 
     Args:
         metrics_df: DataFrame with performance metrics
     """
-    print("\n  Results Summary:")
-    print("  ================")
+    logger.info("results summary")
     for _, row in metrics_df.iterrows():
-        print(
-            f"  {row['ticker']:8s} - Return: {row['total_return']:7.2%}  "
-            f"CAGR: {row['cagr']:7.2%}  Sharpe: {row['sharpe_ratio']:5.2f}  "
-            f"Max DD: {row['max_drawdown']:7.2%}"
+        logger.info(
+            "ticker performance",
+            ticker=row["ticker"],
+            total_return=row["total_return"],
+            cagr=row["cagr"],
+            sharpe_ratio=row["sharpe_ratio"],
+            max_drawdown=row["max_drawdown"],
         )
 
 
@@ -88,17 +93,21 @@ def run_comparison_backtest(
         msg = f"Period '{period_name}' not found in config"
         raise ValueError(msg)
 
-    print(f"Running comparison backtest for {period.name}...")
-    print(f"  Period: {period.start_date.date()} to {period.end_date.date()}")
-    print(f"  Tickers: {', '.join(config.tickers)}")
-    print("  Strategy: 100% allocation per ticker\n")
+    logger.info(
+        "starting comparison backtest",
+        period_name=period.name,
+        start_date=str(period.start_date.date()),
+        end_date=str(period.end_date.date()),
+        tickers=config.tickers,
+        strategy="100% allocation per ticker",
+    )
 
     report_path = create_report_directory(output_dir, period.name)
     results = {}
     all_metrics = []
 
     for ticker in config.tickers:
-        print(f"  Backtesting {ticker}...")
+        logger.info("backtesting ticker", ticker=ticker, status="started")
 
         try:
             backtest_config = BacktestConfig(
@@ -117,20 +126,24 @@ def run_comparison_backtest(
 
             results[ticker] = result
 
-            print(f"    Total Return: {metrics['total_return']:.2%}")
-            print(f"    CAGR: {metrics['cagr']:.2%}")
-            print(f"    Sharpe: {metrics['sharpe_ratio']:.2f}")
-            print(f"    Max DD: {metrics['max_drawdown']:.2%}")
+            logger.info(
+                "backtest completed for ticker",
+                ticker=ticker,
+                total_return=metrics["total_return"],
+                cagr=metrics["cagr"],
+                sharpe_ratio=metrics["sharpe_ratio"],
+                max_drawdown=metrics["max_drawdown"],
+            )
 
         except Exception as e:
-            print(f"    Error: {e}")
+            logger.warning("backtest failed for ticker", ticker=ticker, error=str(e))
             continue
 
     if not all_metrics:
-        print("\n  Error: No tickers had valid data for this period")
+        logger.error("no tickers had valid data for period", period_name=period.name)
         return
 
-    print("\n  Creating comparison chart...")
+    logger.info("creating comparison chart", period_name=period.name)
     chart_path = _create_comparison_chart(results, period, report_path)
 
     metrics_df = pd.DataFrame(all_metrics)
@@ -140,8 +153,11 @@ def run_comparison_backtest(
 
     _print_results_summary(metrics_df)
 
-    print(f"\n  Chart saved: {chart_path}")
-    print(f"  Summary saved: {summary_path}")
+    logger.info(
+        "comparison backtest complete",
+        chart_path=str(chart_path),
+        summary_path=str(summary_path),
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -153,6 +169,8 @@ def main(argv: list[str] | None = None) -> int:
     Returns:
         Exit code (0 for success, 1 for error)
     """
+    configure_logging()
+
     parser = argparse.ArgumentParser(
         description="Compare individual ticker performance",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -218,14 +236,12 @@ def main(argv: list[str] | None = None) -> int:
                     db_path,
                     args.cost,
                 )
-                print()
 
-        print("\nComparison backtest completed successfully!")
+        logger.info("all comparison backtests completed successfully")
         return 0
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        traceback.print_exc()
+        logger.error("comparison backtest failed", error=str(e), exc_info=True)
         return 1
 
 
