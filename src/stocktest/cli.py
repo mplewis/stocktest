@@ -16,11 +16,54 @@ from stocktest.analysis.metrics import summarize_performance
 from stocktest.analysis.reporting import create_report_directory
 from stocktest.backtest.engine import BacktestConfig, run_backtest
 from stocktest.config import Config
+from stocktest.data.cache import get_company_name, get_or_create_security
+from stocktest.data.company_info import fetch_company_name
+from stocktest.data.database import get_engine, get_session
 from stocktest.data.fetcher import fetch_multiple_tickers
 from stocktest.logging import configure_logging
 from stocktest.visualization.interactive_charts import plot_comparison_interactive
 
 logger = structlog.get_logger()
+
+
+async def _fetch_company_names(tickers: list[str], db_path: Path | None) -> dict[str, str]:
+    """Fetch company names for all tickers in parallel.
+
+    Args:
+        tickers: List of ticker symbols
+        db_path: Optional database path for caching
+
+    Returns:
+        Dictionary mapping ticker to company name
+    """
+    engine = get_engine(str(db_path) if db_path else None)
+    company_names = {}
+
+    with get_session(engine) as session:
+        for ticker in tickers:
+            cached_name = get_company_name(session, ticker)
+            if cached_name:
+                company_names[ticker] = cached_name
+
+    missing_tickers = [t for t in tickers if t not in company_names]
+
+    if missing_tickers:
+        logger.info("fetching company names", ticker_count=len(missing_tickers))
+        loop = asyncio.get_event_loop()
+
+        async def fetch_name(ticker):
+            return ticker, await loop.run_in_executor(None, fetch_company_name, ticker)
+
+        tasks = [fetch_name(ticker) for ticker in missing_tickers]
+        results = await asyncio.gather(*tasks)
+
+        with get_session(engine) as session:
+            for ticker, name in results:
+                company_names[ticker] = name
+                get_or_create_security(session, ticker, name)
+            session.commit()
+
+    return company_names
 
 
 def _create_comparison_chart(results, period, report_path):
@@ -213,6 +256,8 @@ def run_comparison_backtest(
         str(db_path) if db_path else None,
     )
 
+    company_names = asyncio.run(_fetch_company_names(config.tickers, db_path))
+
     report_path = create_report_directory(output_dir, period.name)
 
     results, all_metrics = asyncio.run(
@@ -228,6 +273,10 @@ def run_comparison_backtest(
         logger.error("no tickers had valid data for period", period_name=period.name)
         return
 
+    for metrics in all_metrics:
+        ticker = metrics["ticker"]
+        metrics["company_name"] = company_names.get(ticker, ticker)
+
     logger.info("creating comparison charts", period_name=period.name)
     chart_path = _create_comparison_chart(results, period, report_path)
 
@@ -236,10 +285,20 @@ def run_comparison_backtest(
         results,
         output_path=interactive_chart_path,
         title=f"Portfolio Performance Comparison - {period.name}",
+        company_names=company_names,
     )
 
     metrics_df = pd.DataFrame(all_metrics)
     metrics_df = metrics_df.sort_values("total_return", ascending=False)
+    column_order = [
+        "ticker",
+        "company_name",
+        "total_return",
+        "cagr",
+        "sharpe_ratio",
+        "max_drawdown",
+    ]
+    metrics_df = metrics_df[column_order]
     summary_path = report_path / "comparison_summary.csv"
     metrics_df.to_csv(summary_path, index=False)
 

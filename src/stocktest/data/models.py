@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for stocktest database."""
 
-from sqlalchemy import BigInteger, ForeignKey, Index, Integer, String
+from sqlalchemy import BigInteger, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -19,6 +19,7 @@ class Security(Base):
     ticker: Mapped[str] = mapped_column(String, unique=True, nullable=False, index=True)
     name: Mapped[str | None] = mapped_column(String)
     asset_type: Mapped[str | None] = mapped_column(String)
+    company_name: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
     updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
 

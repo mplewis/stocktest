@@ -167,6 +167,7 @@ def plot_comparison_interactive(
     results: dict[str, dict],
     output_path: Path | str | None = None,
     title: str = "Portfolio Performance Comparison",
+    company_names: dict[str, str] | None = None,
 ) -> str:
     """Plot interactive comparison of multiple tickers with hover tooltips.
 
@@ -174,6 +175,7 @@ def plot_comparison_interactive(
         results: Dictionary mapping ticker to result dict with 'equity_curve' key
         output_path: Path to save HTML file (None to return HTML string only)
         title: Chart title
+        company_names: Optional dictionary mapping ticker to company name
 
     Returns:
         HTML string of the chart
@@ -184,6 +186,9 @@ def plot_comparison_interactive(
     if not results:
         msg = "Results dictionary is empty"
         raise ValueError(msg)
+
+    if company_names is None:
+        company_names = {}
 
     fig = go.Figure()
 
@@ -223,14 +228,17 @@ def plot_comparison_interactive(
 
         color = colors[idx % len(colors)]
 
+        company_name = company_names.get(ticker, ticker)
+        legend_name = f"{ticker} - {company_name}" if company_name != ticker else ticker
+
         fig.add_trace(
             go.Scatter(
                 x=equity_curve.index,
                 y=normalized,
                 mode="lines",
-                name=ticker,
+                name=legend_name,
                 line={"color": color, "width": 2},
-                hovertemplate="<b>%{fullData.name}</b>: %{y:.1f}<extra></extra>",
+                hovertemplate=f"<b>{ticker}</b>: %{{y:.1f}}<extra></extra>",
             )
         )
 
@@ -246,7 +254,15 @@ def plot_comparison_interactive(
         hovermode="x unified",
         template="plotly_white",
         height=600,
-        legend={"yanchor": "top", "y": 0.99, "xanchor": "right", "x": 0.99},
+        legend={
+            "yanchor": "top",
+            "y": 0.99,
+            "xanchor": "left",
+            "x": 0.01,
+            "bgcolor": "rgba(255, 255, 255, 0.7)",
+            "bordercolor": "rgba(0, 0, 0, 0.2)",
+            "borderwidth": 1,
+        },
     )
 
     fig.update_xaxes(showgrid=True, gridwidth=1, gridcolor="rgba(0,0,0,0.1)")

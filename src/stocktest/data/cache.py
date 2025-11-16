@@ -21,26 +21,50 @@ def to_dollars(cents: int) -> float:
     return cents / 100.0
 
 
-def get_or_create_security(session: Session, ticker: str) -> Security:
-    """Get or create a security by ticker symbol."""
+def get_or_create_security(
+    session: Session, ticker: str, company_name: str | None = None
+) -> Security:
+    """Get or create a security by ticker symbol.
+
+    Args:
+        session: SQLAlchemy session
+        ticker: Ticker symbol
+        company_name: Optional company name to store
+
+    Returns:
+        Security object
+    """
     security = session.query(Security).filter_by(ticker=ticker).first()
 
     if security is None:
         now = int(time.time())
         security = Security(
             ticker=ticker,
+            company_name=company_name,
             created_at=now,
             updated_at=now,
         )
         session.add(security)
         session.flush()
+    elif company_name and not security.company_name:
+        security.company_name = company_name
+        security.updated_at = int(time.time())
 
     return security
 
 
-def cache_price_data(session: Session, ticker: str, df: pd.DataFrame) -> None:
-    """Cache price data for a security using bulk insert."""
-    security = get_or_create_security(session, ticker)
+def cache_price_data(
+    session: Session, ticker: str, df: pd.DataFrame, company_name: str | None = None
+) -> None:
+    """Cache price data for a security using bulk insert.
+
+    Args:
+        session: SQLAlchemy session
+        ticker: Ticker symbol
+        df: Price data DataFrame
+        company_name: Optional company name to store
+    """
+    security = get_or_create_security(session, ticker, company_name)
 
     for idx, row in df.iterrows():
         if hasattr(idx, "tz_localize"):
@@ -228,6 +252,20 @@ def check_no_data_cached(
     )
 
     return no_data_range is not None
+
+
+def get_company_name(session: Session, ticker: str) -> str | None:
+    """Get cached company name for a ticker.
+
+    Args:
+        session: SQLAlchemy session
+        ticker: Ticker symbol
+
+    Returns:
+        Company name if cached, None otherwise
+    """
+    security = session.query(Security).filter_by(ticker=ticker).first()
+    return security.company_name if security else None
 
 
 def cache_no_data_range(

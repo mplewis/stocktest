@@ -228,3 +228,58 @@ def test_handles_pathlib_and_string_paths(tmp_path):
     path_str = str(tmp_path / "equity_str.html")
     plot_equity_curve_interactive(equity_curve, output_path=path_str)
     assert Path(path_str).exists()
+
+
+def test_comparison_includes_company_names_in_legend(tmp_path):
+    """Includes company names in legend when provided."""
+    results = {
+        "AAPL": {
+            "equity_curve": pd.DataFrame(
+                {"total_value": [10000, 10500, 11000]},
+                index=pd.date_range("2020-01-01", periods=3),
+            )
+        },
+        "MSFT": {
+            "equity_curve": pd.DataFrame(
+                {"total_value": [10000, 10200, 10800]},
+                index=pd.date_range("2020-01-01", periods=3),
+            )
+        },
+    }
+
+    company_names = {
+        "AAPL": "Apple Inc.",
+        "MSFT": "Microsoft Corporation",
+    }
+
+    output_path = tmp_path / "comparison_with_names.html"
+    html = plot_comparison_interactive(
+        results, output_path=output_path, company_names=company_names
+    )
+
+    assert output_path.exists()
+    assert "AAPL - Apple Inc." in html
+    assert "MSFT - Microsoft Corporation" in html
+
+
+def test_comparison_handles_missing_company_names(tmp_path):
+    """Handles tickers without company name data."""
+    results = {
+        "AAPL": {
+            "equity_curve": pd.DataFrame(
+                {"total_value": [10000, 10500, 11000]},
+                index=pd.date_range("2020-01-01", periods=3),
+            )
+        },
+    }
+
+    company_names = {"MSFT": "Microsoft Corporation"}
+
+    output_path = tmp_path / "comparison_partial_names.html"
+    html = plot_comparison_interactive(
+        results, output_path=output_path, company_names=company_names
+    )
+
+    assert output_path.exists()
+    assert "AAPL" in html
+    assert "Apple Inc." not in html
