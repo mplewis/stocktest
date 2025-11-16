@@ -62,3 +62,21 @@ class CacheMetadata(Base):
     total_records: Mapped[int | None] = mapped_column(Integer)
 
     security: Mapped["Security"] = relationship("Security", back_populates="cache_metadata")
+
+
+class NoDataRange(Base):
+    """Tracks date ranges where no data is available for a security."""
+
+    __tablename__ = "no_data_ranges"
+
+    security_id: Mapped[int] = mapped_column(ForeignKey("securities.id"), primary_key=True)
+    start_timestamp: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    end_timestamp: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    last_checked: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    security: Mapped["Security"] = relationship("Security")
+
+    __table_args__ = (
+        Index("idx_no_data_ranges_security", "security_id"),
+        Index("idx_no_data_ranges_timestamps", "security_id", "start_timestamp", "end_timestamp"),
+    )

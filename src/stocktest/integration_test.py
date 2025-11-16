@@ -141,11 +141,16 @@ def test_partial_cache_hit(mock_ticker_class, tmp_path):
             "Volume": [1500000, 1600000],
             "Adj Close": [106.0, 107.0],
         },
-        index=[datetime(2020, 1, 8), datetime(2020, 1, 9)],
+        index=[datetime(2020, 1, 15), datetime(2020, 1, 16)],
     )
 
+    def history_side_effect(start, end):
+        if end.date() <= datetime(2020, 1, 7).date():
+            return mock_df_full
+        return mock_df_missing
+
     mock_ticker = mock_ticker_class.return_value
-    mock_ticker.history.return_value = mock_df_full
+    mock_ticker.history.side_effect = history_side_effect
 
     db_path = tmp_path / "test.db"
 
@@ -159,12 +164,10 @@ def test_partial_cache_hit(mock_ticker_class, tmp_path):
 
     assert len(initial_data) == 5
 
-    mock_ticker.history.return_value = mock_df_missing
-
     extended_data = fetch_price_data(
         "VTI",
         datetime(2020, 1, 1),
-        datetime(2020, 1, 9),
+        datetime(2020, 1, 20),
         db_path=str(db_path),
         delay=0,
     )

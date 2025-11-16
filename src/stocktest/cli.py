@@ -1,7 +1,10 @@
 """CLI for comparing individual ticker performance."""
 
 import argparse
+import asyncio
+import os
 import sys
+import webbrowser
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -15,6 +18,7 @@ from stocktest.backtest.engine import BacktestConfig, run_backtest
 from stocktest.config import Config
 from stocktest.data.fetcher import fetch_multiple_tickers
 from stocktest.logging import configure_logging
+from stocktest.visualization.interactive_charts import plot_comparison_interactive
 
 logger = structlog.get_logger()
 
@@ -73,12 +77,109 @@ def _print_results_summary(metrics_df):
         )
 
 
+async def _run_backtest_async(
+    ticker: str,
+    period,
+    db_path: Path | None,
+    transaction_cost: float,
+) -> tuple[str, dict | None, dict | None]:
+    """Run backtest for a single ticker asynchronously.
+
+    Args:
+        ticker: Ticker symbol
+        period: Time period configuration
+        db_path: Optional database path for caching
+        transaction_cost: Transaction cost percentage
+
+    Returns:
+        Tuple of (ticker, result_dict, metrics_dict) or (ticker, None, None) on failure
+    """
+    try:
+        loop = asyncio.get_event_loop()
+        backtest_config = BacktestConfig(
+            tickers=[ticker],
+            weights={ticker: 1.0},
+            start_date=period.start_date,
+            end_date=period.end_date,
+            transaction_cost_pct=transaction_cost,
+            db_path=str(db_path) if db_path else None,
+        )
+
+        result = await loop.run_in_executor(None, run_backtest, backtest_config)
+        metrics = await loop.run_in_executor(None, summarize_performance, result["equity_curve"])
+        metrics["ticker"] = ticker
+
+        logger.info(
+            "backtest completed for ticker",
+            ticker=ticker,
+            total_return=metrics["total_return"],
+            cagr=metrics["cagr"],
+            sharpe_ratio=metrics["sharpe_ratio"],
+            max_drawdown=metrics["max_drawdown"],
+        )
+
+        return ticker, result, metrics
+
+    except Exception as e:
+        logger.warning("backtest failed for ticker", ticker=ticker, error=str(e))
+        return ticker, None, None
+
+
+async def _run_backtests_parallel(
+    tickers: list[str],
+    period,
+    db_path: Path | None,
+    transaction_cost: float,
+    max_concurrent: int | None = None,
+) -> tuple[dict, list]:
+    """Run backtests for multiple tickers in parallel.
+
+    Args:
+        tickers: List of ticker symbols
+        period: Time period configuration
+        db_path: Optional database path for caching
+        transaction_cost: Transaction cost percentage
+        max_concurrent: Maximum concurrent backtests (default: CPU count)
+
+    Returns:
+        Tuple of (results_dict, metrics_list)
+    """
+    if max_concurrent is None:
+        max_concurrent = os.cpu_count() or 1
+
+    logger.info(
+        "running backtests in parallel",
+        ticker_count=len(tickers),
+        max_concurrent=max_concurrent,
+    )
+
+    semaphore = asyncio.Semaphore(max_concurrent)
+
+    async def run_with_semaphore(ticker):
+        async with semaphore:
+            return await _run_backtest_async(ticker, period, db_path, transaction_cost)
+
+    tasks = [run_with_semaphore(ticker) for ticker in tickers]
+    completed = await asyncio.gather(*tasks)
+
+    results = {}
+    all_metrics = []
+
+    for ticker, result, metrics in completed:
+        if result is not None and metrics is not None:
+            results[ticker] = result
+            all_metrics.append(metrics)
+
+    return results, all_metrics
+
+
 def run_comparison_backtest(
     config: Config,
     period_name: str,
     output_dir: Path,
     db_path: Path | None = None,
     transaction_cost: float = 0.0,
+    open_browser: bool = False,
 ) -> None:
     """Run backtests for each ticker individually and compare.
 
@@ -88,6 +189,7 @@ def run_comparison_backtest(
         output_dir: Directory for output files
         db_path: Optional database path for caching
         transaction_cost: Transaction cost percentage
+        open_browser: Whether to open interactive chart in browser
     """
     period = next((p for p in config.time_periods if p.name == period_name), None)
     if not period:
@@ -112,48 +214,29 @@ def run_comparison_backtest(
     )
 
     report_path = create_report_directory(output_dir, period.name)
-    results = {}
-    all_metrics = []
 
-    for ticker in config.tickers:
-        logger.info("backtesting ticker", ticker=ticker, status="started")
-
-        try:
-            backtest_config = BacktestConfig(
-                tickers=[ticker],
-                weights={ticker: 1.0},
-                start_date=period.start_date,
-                end_date=period.end_date,
-                transaction_cost_pct=transaction_cost,
-                db_path=str(db_path) if db_path else None,
-            )
-            result = run_backtest(backtest_config)
-
-            metrics = summarize_performance(result["equity_curve"])
-            metrics["ticker"] = ticker
-            all_metrics.append(metrics)
-
-            results[ticker] = result
-
-            logger.info(
-                "backtest completed for ticker",
-                ticker=ticker,
-                total_return=metrics["total_return"],
-                cagr=metrics["cagr"],
-                sharpe_ratio=metrics["sharpe_ratio"],
-                max_drawdown=metrics["max_drawdown"],
-            )
-
-        except Exception as e:
-            logger.warning("backtest failed for ticker", ticker=ticker, error=str(e))
-            continue
+    results, all_metrics = asyncio.run(
+        _run_backtests_parallel(
+            config.tickers,
+            period,
+            db_path,
+            transaction_cost,
+        )
+    )
 
     if not all_metrics:
         logger.error("no tickers had valid data for period", period_name=period.name)
         return
 
-    logger.info("creating comparison chart", period_name=period.name)
+    logger.info("creating comparison charts", period_name=period.name)
     chart_path = _create_comparison_chart(results, period, report_path)
+
+    interactive_chart_path = report_path / "comparison.html"
+    plot_comparison_interactive(
+        results,
+        output_path=interactive_chart_path,
+        title=f"Portfolio Performance Comparison - {period.name}",
+    )
 
     metrics_df = pd.DataFrame(all_metrics)
     metrics_df = metrics_df.sort_values("total_return", ascending=False)
@@ -164,9 +247,14 @@ def run_comparison_backtest(
 
     logger.info(
         "comparison backtest complete",
-        chart_path=str(chart_path),
+        static_chart=str(chart_path),
+        interactive_chart=str(interactive_chart_path),
         summary_path=str(summary_path),
     )
+
+    if open_browser:
+        logger.info("opening interactive chart in browser", path=str(interactive_chart_path))
+        webbrowser.open(f"file://{interactive_chart_path.absolute()}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -219,6 +307,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Transaction cost percentage (default: 0.0)",
     )
 
+    parser.add_argument(
+        "--open",
+        action="store_true",
+        help="Open interactive charts in browser after generation",
+    )
+
     args = parser.parse_args(argv)
 
     try:
@@ -235,6 +329,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.output,
                 db_path,
                 args.cost,
+                args.open,
             )
         else:
             for period in config.time_periods:
@@ -244,6 +339,7 @@ def main(argv: list[str] | None = None) -> int:
                     args.output,
                     db_path,
                     args.cost,
+                    args.open,
                 )
 
         logger.info("all comparison backtests completed successfully")

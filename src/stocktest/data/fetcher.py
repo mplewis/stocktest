@@ -12,7 +12,9 @@ import yfinance as yf
 from tqdm import tqdm
 
 from stocktest.data.cache import (
+    cache_no_data_range,
     cache_price_data,
+    check_no_data_cached,
     find_missing_ranges,
     load_price_data,
     update_cache_metadata,
@@ -71,6 +73,9 @@ def fetch_price_data(
     engine = get_engine(db_path)
 
     with get_session(engine) as session:
+        if check_no_data_cached(session, ticker, start_date, end_date):
+            raise ValueError(f"No data available for {ticker} in requested date range (cached)")
+
         cached_data = load_price_data(session, ticker, start_date, end_date)
 
         if cached_data is not None and len(cached_data) > 0:
@@ -83,10 +88,13 @@ def fetch_price_data(
                 if delay > 0:
                     time.sleep(delay)
 
-                new_data = fetch_with_retry(ticker, missing_start, missing_end)
-
-                cache_price_data(session, ticker, new_data)
-                update_cache_metadata(session, ticker)
+                try:
+                    new_data = fetch_with_retry(ticker, missing_start, missing_end)
+                    cache_price_data(session, ticker, new_data)
+                    update_cache_metadata(session, ticker)
+                except ValueError:
+                    cache_no_data_range(session, ticker, missing_start, missing_end)
+                    session.commit()
 
             return load_price_data(session, ticker, start_date, end_date)
 
@@ -94,12 +102,15 @@ def fetch_price_data(
             if delay > 0:
                 time.sleep(delay)
 
-            data = fetch_with_retry(ticker, start_date, end_date)
-
-            cache_price_data(session, ticker, data)
-            update_cache_metadata(session, ticker)
-
-            return data
+            try:
+                data = fetch_with_retry(ticker, start_date, end_date)
+                cache_price_data(session, ticker, data)
+                update_cache_metadata(session, ticker)
+                return data
+            except ValueError:
+                cache_no_data_range(session, ticker, start_date, end_date)
+                session.commit()
+                raise
 
 
 async def fetch_ticker_async(

@@ -5,7 +5,9 @@ from datetime import datetime
 import pandas as pd
 
 from stocktest.data.cache import (
+    cache_no_data_range,
     cache_price_data,
+    check_no_data_cached,
     find_missing_ranges,
     get_or_create_security,
     load_price_data,
@@ -14,7 +16,7 @@ from stocktest.data.cache import (
     update_cache_metadata,
 )
 from stocktest.data.database import get_engine, get_session
-from stocktest.data.models import CacheMetadata, Security
+from stocktest.data.models import CacheMetadata, NoDataRange, Security
 
 
 def test_converts_dollars_to_cents():
@@ -172,3 +174,88 @@ def test_updates_cache_metadata(tmp_path):
         assert metadata.total_records == 2
         assert metadata.earliest_data is not None
         assert metadata.latest_data is not None
+
+
+def test_caches_no_data_range(tmp_path):
+    """Caches that no data is available for a ticker/date range."""
+    db_path = tmp_path / "test.db"
+    engine = get_engine(db_path)
+
+    with get_session(engine) as session:
+        cache_no_data_range(session, "INVALID", datetime(2020, 1, 1), datetime(2020, 1, 31))
+
+    with get_session(engine) as session:
+        security = session.query(Security).filter_by(ticker="INVALID").first()
+        no_data_range = session.query(NoDataRange).filter_by(security_id=security.id).first()
+
+        assert no_data_range is not None
+        assert no_data_range.last_checked is not None
+
+
+def test_detects_cached_no_data(tmp_path):
+    """Detects when no-data status is already cached."""
+    db_path = tmp_path / "test.db"
+    engine = get_engine(db_path)
+
+    with get_session(engine) as session:
+        cache_no_data_range(session, "INVALID", datetime(2020, 1, 1), datetime(2020, 1, 31))
+
+    with get_session(engine) as session:
+        is_cached = check_no_data_cached(
+            session, "INVALID", datetime(2020, 1, 1), datetime(2020, 1, 31)
+        )
+
+    assert is_cached is True
+
+
+def test_no_data_not_cached_for_different_range(tmp_path):
+    """Returns False when checking a different date range."""
+    db_path = tmp_path / "test.db"
+    engine = get_engine(db_path)
+
+    with get_session(engine) as session:
+        cache_no_data_range(session, "INVALID", datetime(2020, 1, 1), datetime(2020, 1, 31))
+
+    with get_session(engine) as session:
+        is_cached = check_no_data_cached(
+            session, "INVALID", datetime(2020, 2, 1), datetime(2020, 2, 28)
+        )
+
+    assert is_cached is False
+
+
+def test_no_data_not_cached_for_unknown_ticker(tmp_path):
+    """Returns False when checking a ticker that doesn't exist."""
+    db_path = tmp_path / "test.db"
+    engine = get_engine(db_path)
+
+    with get_session(engine) as session:
+        is_cached = check_no_data_cached(
+            session, "UNKNOWN", datetime(2020, 1, 1), datetime(2020, 1, 31)
+        )
+
+    assert is_cached is False
+
+
+def test_updates_last_checked_on_duplicate(tmp_path):
+    """Updates last_checked timestamp when caching the same range again."""
+    db_path = tmp_path / "test.db"
+    engine = get_engine(db_path)
+
+    with get_session(engine) as session:
+        cache_no_data_range(session, "INVALID", datetime(2020, 1, 1), datetime(2020, 1, 31))
+
+    with get_session(engine) as session:
+        security = session.query(Security).filter_by(ticker="INVALID").first()
+        no_data_range = session.query(NoDataRange).filter_by(security_id=security.id).first()
+        first_check = no_data_range.last_checked
+
+    with get_session(engine) as session:
+        cache_no_data_range(session, "INVALID", datetime(2020, 1, 1), datetime(2020, 1, 31))
+
+    with get_session(engine) as session:
+        security = session.query(Security).filter_by(ticker="INVALID").first()
+        no_data_range = session.query(NoDataRange).filter_by(security_id=security.id).first()
+        second_check = no_data_range.last_checked
+
+    assert second_check >= first_check

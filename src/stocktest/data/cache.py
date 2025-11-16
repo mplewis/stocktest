@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from stocktest.data.models import CacheMetadata, Price, Security
+from stocktest.data.models import CacheMetadata, NoDataRange, Price, Security
 
 MISSING_DATA_TOLERANCE_DAYS = 3
 
@@ -191,3 +191,82 @@ def update_cache_metadata(session: Session, ticker: str) -> None:
         metadata.total_records = total
 
     security.updated_at = now
+
+
+def check_no_data_cached(
+    session: Session, ticker: str, start_date: datetime, end_date: datetime
+) -> bool:
+    """Check if we have previously confirmed that no data exists for this date range.
+
+    Args:
+        session: SQLAlchemy session
+        ticker: Ticker symbol
+        start_date: Start of date range
+        end_date: End of date range
+
+    Returns:
+        True if we have cached that no data exists for this range, False otherwise
+    """
+    security = session.query(Security).filter_by(ticker=ticker).first()
+
+    if security is None:
+        return False
+
+    start_ts = int(pd.Timestamp(start_date).tz_localize("UTC").timestamp())
+    end_ts = int(
+        pd.Timestamp(end_date).tz_localize("UTC").replace(hour=23, minute=59, second=59).timestamp()
+    )
+
+    no_data_range = (
+        session.query(NoDataRange)
+        .filter(
+            NoDataRange.security_id == security.id,
+            NoDataRange.start_timestamp <= start_ts,
+            NoDataRange.end_timestamp >= end_ts,
+        )
+        .first()
+    )
+
+    return no_data_range is not None
+
+
+def cache_no_data_range(
+    session: Session, ticker: str, start_date: datetime, end_date: datetime
+) -> None:
+    """Record that no data is available for this ticker and date range.
+
+    Args:
+        session: SQLAlchemy session
+        ticker: Ticker symbol
+        start_date: Start of date range
+        end_date: End of date range
+    """
+    security = get_or_create_security(session, ticker)
+
+    start_ts = int(pd.Timestamp(start_date).tz_localize("UTC").timestamp())
+    end_ts = int(
+        pd.Timestamp(end_date).tz_localize("UTC").replace(hour=23, minute=59, second=59).timestamp()
+    )
+
+    existing = (
+        session.query(NoDataRange)
+        .filter(
+            NoDataRange.security_id == security.id,
+            NoDataRange.start_timestamp == start_ts,
+            NoDataRange.end_timestamp == end_ts,
+        )
+        .first()
+    )
+
+    now = int(time.time())
+
+    if existing is None:
+        no_data_range = NoDataRange(
+            security_id=security.id,
+            start_timestamp=start_ts,
+            end_timestamp=end_ts,
+            last_checked=now,
+        )
+        session.add(no_data_range)
+    else:
+        existing.last_checked = now
