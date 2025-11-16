@@ -1,12 +1,14 @@
 """Cache operations for price data using SQLAlchemy ORM."""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 from sqlalchemy.orm import Session
 
 from stocktest.data.models import CacheMetadata, Price, Security
+
+MISSING_DATA_TOLERANCE_DAYS = 3
 
 
 def to_cents(value: float) -> int:
@@ -96,7 +98,9 @@ def load_price_data(
         "Adj Close": [to_dollars(p.adjusted_close) for p in prices],
     }
 
-    index = [datetime.fromtimestamp(p.timestamp) for p in prices]
+    index = [
+        datetime.fromtimestamp(p.timestamp, tz=timezone.utc).replace(tzinfo=None) for p in prices
+    ]
 
     return pd.DataFrame(data, index=index)
 
@@ -131,13 +135,18 @@ def find_missing_ranges(
     cached_start = timestamps[0]
     cached_end = timestamps[-1]
 
+    cached_start_dt = datetime.fromtimestamp(cached_start, tz=timezone.utc).replace(tzinfo=None)
+    cached_end_dt = datetime.fromtimestamp(cached_end, tz=timezone.utc).replace(tzinfo=None)
+
     missing = []
 
-    if start_ts < cached_start:
-        missing.append((start_date, datetime.fromtimestamp(cached_start)))
+    days_before = (cached_start_dt.date() - start_date.date()).days
+    if days_before > MISSING_DATA_TOLERANCE_DAYS:
+        missing.append((start_date, cached_start_dt))
 
-    if end_ts > cached_end:
-        missing.append((datetime.fromtimestamp(cached_end), end_date))
+    days_after = (end_date.date() - cached_end_dt.date()).days
+    if days_after > MISSING_DATA_TOLERANCE_DAYS:
+        missing.append((cached_end_dt, end_date))
 
     return missing
 

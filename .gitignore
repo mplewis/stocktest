@@ -70,3 +70,5 @@ alembic/versions/*.pyc
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+tmp/
